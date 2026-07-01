@@ -1,0 +1,394 @@
+# Cloud Computing Lab - Program 6
+## Program 6: Run PHP Code on EC2 Instance That Retrieves Data from RDS Server
+
+Step-by-Step Execution
+Step 1: Verify RDS Database from Program 5
+
+Since the RDS database was already created in Program 5, first verify that it is running.
+
+Go to:
+
+AWS Console → RDS → Databases
+
+Open:
+
+pg05-mysql-db
+
+Check that status is:
+
+Available
+
+Copy the RDS endpoint.
+
+It will look like:
+
+pg05-mysql-db.xxxxxxxxxxxx.ap-south-1.rds.amazonaws.com
+
+Also note:
+
+Port: 3306
+Username: admin
+Password: Admin12345
+Database: cloud_lab
+Table: students
+Step 2: Verify RDS Security Group
+
+For EC2 to connect to RDS, the RDS security group must allow MySQL traffic.
+
+Go to:
+
+EC2 Dashboard → Security Groups → RDS-SG
+
+Check inbound rule:
+
+Type: MySQL/Aurora
+Protocol: TCP
+Port: 3306
+Source: EC2 security group or 0.0.0.0/0
+
+For lab exam, if connection fails, use:
+
+Source: 0.0.0.0/0
+
+This allows the EC2 instance to connect to the RDS database.
+
+Step 3: Launch Ubuntu EC2 Instance
+
+Go to:
+
+EC2 Dashboard → Instances
+
+Click:
+
+Launch instances
+
+Enter instance name:
+
+PG06-PHP-EC2
+
+Choose AMI:
+
+Ubuntu Server
+
+Choose instance type:
+
+t2.micro
+
+or:
+
+t3.micro
+
+Choose key pair:
+
+cloud-lab-key
+
+In Network settings, click:
+
+Edit
+
+Select:
+
+VPC: Lab-VPC
+Subnet: Public-Subnet
+Auto-assign public IP: Enable
+
+Use or create a security group with the following inbound rules:
+
+Type: SSH
+Port: 22
+Source: My IP or 0.0.0.0/0
+Type: HTTP
+Port: 80
+Source: 0.0.0.0/0
+
+Optional:
+
+Type: HTTPS
+Port: 443
+Source: 0.0.0.0/0
+
+Click:
+
+Launch instance
+
+Wait until the instance state becomes:
+
+Running
+
+Copy the EC2 public IPv4 address.
+
+Step 4: Connect to EC2 from Ubuntu Terminal
+
+Open your local Ubuntu terminal.
+
+Go to the folder where the key pair is stored:
+
+cd ~/Downloads
+
+Give permission to the key file:
+
+chmod 400 cloud-lab-key.pem
+
+Connect to EC2:
+
+ssh -i cloud-lab-key.pem ubuntu@EC2-PUBLIC-IP
+
+Example:
+
+ssh -i cloud-lab-key.pem ubuntu@13.233.xx.xx
+
+After successful login, the terminal will look like:
+
+ubuntu@ip-10-1-1-xx:~$
+
+This means you are now inside the Ubuntu EC2 instance.
+
+Step 5: Install Apache, PHP, PHP-MySQL, and MySQL Client
+
+Inside the EC2 terminal, run:
+
+sudo apt update -y
+sudo apt install -y apache2 php libapache2-mod-php php-mysql mysql-client
+
+Restart Apache:
+
+sudo systemctl restart apache2
+
+Enable Apache:
+
+sudo systemctl enable apache2
+
+Check Apache status:
+
+sudo systemctl status apache2
+
+Expected status:
+
+active (running)
+Step 6: Test Apache Web Server
+
+Open browser on your local system and enter:
+
+http://EC2-PUBLIC-IP
+
+Example:
+
+http://13.233.xx.xx
+
+If Apache is installed correctly, the default Apache page or web page should open.
+
+Step 7: Test MySQL Connection from EC2 to RDS
+
+Inside the EC2 terminal, connect to RDS:
+
+mysql -h RDS-ENDPOINT -P 3306 -u admin -p
+
+Example:
+
+mysql -h pg05-mysql-db.xxxxxxxxxxxx.ap-south-1.rds.amazonaws.com -P 3306 -u admin -p
+
+Enter password:
+
+Admin12345
+
+After successful connection, MySQL prompt appears:
+
+mysql>
+
+Run:
+
+SHOW DATABASES;
+
+Use the database:
+
+USE cloud_lab;
+
+Check table records:
+
+SELECT * FROM students;
+
+Expected output:
+
++----+--------+-----------------+-------+
+| id | name   | course          | marks |
++----+--------+-----------------+-------+
+|  1 | Musaib | Cloud Computing |    95 |
+|  3 | Sara   | Database        |    88 |
++----+--------+-----------------+-------+
+
+Exit MySQL:
+
+EXIT;
+
+This confirms that the EC2 instance can communicate with the RDS server.
+
+Step 8: Go to Apache Web Root Directory Inside EC2
+
+This step must be done inside the EC2 Ubuntu terminal, not on the local Ubuntu system.
+
+Go to the Apache web root directory:
+
+cd /var/www/html
+
+Check current files:
+
+ls
+
+The /var/www/html folder is the Apache web server folder where PHP files must be placed.
+
+Step 9: Create Database Connection File
+
+Inside EC2, create a file named:
+
+db.inc.php
+
+Run:
+
+sudo nano db.inc.php
+
+Paste the following PHP code:
+
+<?php
+$servername = "RDS-ENDPOINT";
+$username   = "admin";
+$password   = "Admin12345";
+$dbname     = "cloud_lab";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+?>
+
+Replace:
+
+RDS-ENDPOINT
+
+with your actual RDS endpoint.
+
+Example:
+
+$servername = "pg05-mysql-db.xxxxxxxxxxxx.ap-south-1.rds.amazonaws.com";
+
+Save the file:
+
+Ctrl + O
+Enter
+Ctrl + X
+Step 10: Create PHP Main Page
+
+Inside the same directory:
+
+cd /var/www/html
+
+Create:
+
+sudo nano index.php
+
+Paste this code:
+
+<?php
+include 'db.inc.php';
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PG-06 PHP and RDS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+
+        h1 {
+            color: #222;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<h1>PG-06: PHP Connected to RDS Successfully</h1>
+<h2>Student Details from Amazon RDS</h2>
+
+<?php
+$sql = "SELECT * FROM students";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    echo "<table>";
+    echo "<tr><th>ID</th><th>Name</th><th>Course</th><th>Marks</th></tr>";
+
+    while ($row = $result->fetch_assoc()) {
+        echo "<tr>";
+        echo "<td>" . $row["id"] . "</td>";
+        echo "<td>" . $row["name"] . "</td>";
+        echo "<td>" . $row["course"] . "</td>";
+        echo "<td>" . $row["marks"] . "</td>";
+        echo "</tr>";
+    }
+
+    echo "</table>";
+} else {
+    echo "No records found";
+}
+
+$conn->close();
+?>
+
+</body>
+</html>
+
+Save the file:
+
+Ctrl + O
+Enter
+Ctrl + X
+Step 11: Set File Permissions
+
+Run:
+
+sudo chown -R www-data:www-data /var/www/html
+sudo chmod -R 755 /var/www/html
+
+Restart Apache:
+
+sudo systemctl restart apache2
+Step 12: Open PHP Page in Browser
+
+Copy the EC2 public IPv4 address.
+
+Open browser on your local system:
+
+http://EC2-PUBLIC-IP/index.php
+
+Example:
+
+http://13.233.xx.xx/index.php
+
+Expected output:
+
+PG-06: PHP Connected to RDS Successfully
+
+Student Details from Amazon RDS
+
+ID   Name    Course            Marks
+1    Musaib  Cloud Computing   95
+3    Sara    Database          88

@@ -1,0 +1,263 @@
+# Cloud Computing Lab - Program 4
+## Program 4: Create a New User from Root Using Identity and Access Management (IAM)
+
+## Step 1: Login as Root User
+
+1. Open AWS Management Console.
+2. Login using the AWS root account.
+
+Root user has full access to all AWS services, IAM permissions, billing, and account-level settings.
+
+For this program, root user is used to create and manage IAM users and permissions.
+
+---
+
+## Step 2: Open IAM Dashboard
+
+1. In the AWS search bar, search:
+IAM
+Open IAM Dashboard.
+In the left-side menu, click:
+Users
+Step 3: Create New IAM User
+Click:
+Create user
+Enter user name:
+test-user
+Click:
+Next
+In permissions options, choose:
+Attach policies directly
+
+For first demonstration, do not attach S3 permission yet.
+
+Click:
+Next
+Review the user details.
+Click:
+Create user
+
+The IAM user test-user is now created.
+
+Step 4: Note the IAM User ARN
+Open the created user:
+test-user
+Copy or note the IAM user ARN.
+
+It will look similar to:
+
+arn:aws:iam::ACCOUNT-ID:user/test-user
+
+ARN stands for Amazon Resource Name. It uniquely identifies AWS resources.
+
+Step 5: Enable Console Access for IAM User
+Open:
+IAM → Users → test-user
+Go to:
+Security credentials
+Find:
+Console access
+Click:
+Enable console access
+Select:
+IAM user
+Enable console access.
+Choose:
+Custom password
+Enter password:
+TestUser@123
+For quick lab execution, untick:
+User must create a new password at next sign-in
+Click:
+Apply
+
+After this, copy the following details:
+
+Console sign-in URL
+Username
+Password
+
+Example:
+
+Console URL: https://ACCOUNT-ID.signin.aws.amazon.com/console
+Username: test-user
+Password: TestUser@123
+
+Do not upload real passwords or access keys to GitHub.
+
+Step 6: Login as IAM User
+Open a new browser tab or incognito window.
+Paste the IAM user console sign-in URL.
+Enter:
+Username: test-user
+Password: TestUser@123
+Click:
+Sign in
+
+The IAM user will now login to AWS Console.
+
+Step 7: Try to Access S3 Without Permission
+After logging in as IAM user, search:
+S3
+Open Amazon S3.
+
+Since no S3 permission has been assigned yet, the user may get an error like:
+
+Access Denied
+You do not have permission to access this resource.
+
+This shows that a newly created IAM user does not automatically get access to AWS services.
+
+Create and Attach S3 Policy
+Step 8: Login Back as Root User
+Go back to the root user browser tab.
+Search:
+IAM
+Open IAM Dashboard.
+Step 9: Create IAM Policy for S3 Access
+In IAM Dashboard, click:
+Policies
+Click:
+Create policy
+Select:
+JSON
+Delete the existing JSON and paste the following policy:
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3FullAccessForLab",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": "*"
+    }
+  ]
+}
+
+This policy allows full access to Amazon S3 for lab demonstration.
+
+Click:
+Next
+Enter policy name:
+PG04-S3-Access-Policy
+Enter description:
+Allows S3 access for IAM user in cloud computing lab
+Click:
+Create policy
+Step 10: Attach Policy to IAM User
+Go to:
+IAM → Users
+Open:
+test-user
+Go to:
+Permissions
+Click:
+Add permissions
+Choose:
+Attach policies directly
+Search for:
+PG04-S3-Access-Policy
+Select the policy.
+Click:
+Next
+Click:
+Add permissions
+
+Now the IAM user has S3 access.
+
+Step 11: Login Again as IAM User
+Go back to the IAM user browser tab.
+Logout and login again, or refresh the page.
+Login using:
+Username: test-user
+Password: TestUser@123
+Step 12: Access S3 as IAM User
+Search:
+S3
+Open Amazon S3.
+
+Now the IAM user should be able to access S3 successfully.
+
+This proves that permission attached through IAM policy is working.
+
+Step 13: Create S3 Bucket as IAM User
+In Amazon S3, click:
+Create bucket
+Enter a globally unique bucket name:
+musaib-pg04-iam-demo-20260701
+
+Use your own unique bucket name if this name is already taken.
+
+Select region:
+Asia Pacific Mumbai / ap-south-1
+Keep other settings as default.
+Click:
+Create bucket
+
+If the bucket is created successfully, the IAM user has correct S3 permission.
+
+Optional: Create IAM Group and Add User
+Step 14: Create IAM User Group
+
+Login as root user.
+
+Go to:
+
+IAM → User groups
+
+Click:
+
+Create group
+
+Enter group name:
+
+S3-Users-Group
+
+Click:
+
+Create group
+
+IAM groups are used to organize users and assign permissions to multiple users together.
+
+Step 15: Attach Policy to Group
+Open:
+S3-Users-Group
+Go to:
+Permissions
+Click:
+Add permissions
+Select:
+Attach policies
+Search:
+PG04-S3-Access-Policy
+Select the policy.
+Click:
+Add permissions
+
+Now the group has S3 permission.
+
+Step 16: Add IAM User to Group
+Open:
+IAM → User groups → S3-Users-Group
+Click:
+Add users
+Select:
+test-user
+Click:
+Add users
+
+Now test-user receives permissions through the group also.
+
+Optional: Remove or Delete Policy from IAM User
+Step 17: Remove Direct Policy from User
+
+If permission needs to be removed:
+
+Go to:
+IAM → Users → test-user
+Open:
+Permissions
+Select the attached policy:
+PG04-S3-Access-Policy
+Click:
+Remove

@@ -1,0 +1,272 @@
+# Cloud Computing Lab - Program 8
+## Program 8: Demonstrate VS Code Integration with Cloud
+
+
+
+# Step-by-Step Execution
+
+---
+
+## Step 1: Start the EC2 Instance
+
+Go to:
+
+```text
+AWS Console → EC2 → Instances
+
+Select the existing Ubuntu EC2 instance:
+
+PG07-Static-EC2
+
+If the instance is stopped, click:
+
+Instance state → Start instance
+
+Wait until the instance state becomes:
+
+Running
+
+Copy the Public IPv4 address of the EC2 instance.
+
+Example:
+
+13.201.xx.xx
+Step 2: Check Security Group
+
+Go to:
+
+EC2 → Instances → Select PG07-Static-EC2 → Security
+
+Open the attached security group.
+
+Make sure inbound rule has:
+
+Type: SSH
+Protocol: TCP
+Port: 22
+Source: My IP or 0.0.0.0/0
+
+For lab exam, if SSH does not connect, use:
+
+Source: 0.0.0.0/0
+
+SSH port 22 must be open because VS Code connects to EC2 using SSH.
+
+Step 3: Keep PEM Key Ready
+
+On the local Ubuntu system, the key pair should be available in Downloads:
+
+~/Downloads/cloud-lab-key.pem
+
+Create .ssh folder if it does not exist:
+
+mkdir -p ~/.ssh
+
+Copy the PEM key into .ssh folder:
+
+cp ~/Downloads/cloud-lab-key.pem ~/.ssh/
+
+Set correct permission:
+
+chmod 400 ~/.ssh/cloud-lab-key.pem
+
+This permission is required because SSH does not accept private keys with open permissions.
+
+Step 4: Test SSH Connection from Ubuntu Terminal
+
+Before connecting from VS Code, test SSH from normal Ubuntu terminal.
+
+Run:
+
+ssh -i ~/.ssh/cloud-lab-key.pem ubuntu@EC2-PUBLIC-IP
+
+Example:
+
+ssh -i ~/.ssh/cloud-lab-key.pem ubuntu@13.201.xx.xx
+
+If asked:
+
+Are you sure you want to continue connecting?
+
+Type:
+
+yes
+
+After successful connection, terminal should show:
+
+ubuntu@ip-10-1-1-xx:~$
+
+Run:
+
+hostname
+uname -a
+whoami
+
+Expected output:
+
+ip-10-1-1-xx
+Linux ip-10-1-1-xx ...
+ubuntu
+
+Exit from EC2:
+
+exit
+
+If SSH works from terminal, then VS Code Remote SSH will also work.
+
+Step 5: Install Remote SSH Extension in VS Code
+
+Open Visual Studio Code.
+
+Go to:
+
+Extensions
+
+or press:
+
+Ctrl + Shift + X
+
+Search:
+
+Remote - SSH
+
+Install the extension by Microsoft:
+
+Remote - SSH
+
+This extension allows VS Code to connect to remote servers through SSH.
+
+Step 6: Open SSH Configuration File in VS Code
+
+In VS Code, press:
+
+Ctrl + Shift + P
+
+Search:
+
+Remote-SSH: Open SSH Configuration File
+
+Select:
+
+~/.ssh/config
+
+or:
+
+/home/your-username/.ssh/config
+Step 7: Add SSH Configuration
+
+Add the following block in the SSH config file:
+
+Host PG07-Static-EC2
+    HostName EC2-PUBLIC-IP
+    User ubuntu
+    IdentityFile /home/musaib-parveez/.ssh/cloud-lab-key.pem
+    IdentitiesOnly yes
+
+Example:
+
+Host PG07-Static-EC2
+    HostName 13.201.xx.xx
+    User ubuntu
+    IdentityFile /home/musaib-parveez/.ssh/cloud-lab-key.pem
+    IdentitiesOnly yes
+
+Save the file:
+
+Ctrl + S
+
+Important:
+
+Host = nickname used inside VS Code
+HostName = actual EC2 Public IPv4 address
+User = ubuntu for Ubuntu EC2
+IdentityFile = path of PEM key
+
+Do not write the EC2 instance name in HostName.
+
+Correct:
+
+Host PG07-Static-EC2
+    HostName 13.201.xx.xx
+
+Wrong:
+
+Host PG07-Static-EC2
+    HostName PG07-Static-EC2
+
+If HostName contains PG07-Static-EC2, VS Code will show:
+
+Could not resolve hostname
+Step 8: Connect to EC2 from VS Code
+
+In VS Code, press:
+
+Ctrl + Shift + P
+
+Search:
+
+Remote-SSH: Connect to Host
+
+Select:
+
+PG07-Static-EC2
+
+If VS Code asks for the operating system, select:
+
+Linux
+
+VS Code will open a new remote window and connect to the EC2 instance.
+
+Step 9: Verify Remote Connection
+
+After VS Code connects successfully, open terminal in VS Code:
+
+Terminal → New Terminal
+
+The terminal should show:
+
+ubuntu@ip-10-1-1-xx:~$
+
+Run:
+
+hostname
+uname -a
+whoami
+pwd
+
+Expected output:
+
+ip-10-1-1-xx
+Linux ip-10-1-1-xx ...
+ubuntu
+/home/ubuntu
+
+This confirms that VS Code is connected to the AWS Ubuntu EC2 instance.
+
+Step 10: Create Test File from VS Code Terminal
+
+Inside VS Code remote terminal, run:
+
+mkdir pg08-vscode-demo
+cd pg08-vscode-demo
+nano test.txt
+
+Write:
+
+PG-08 VS Code successfully connected to AWS EC2 instance.
+
+Save:
+
+Ctrl + O
+Enter
+Ctrl + X
+
+Display the file:
+
+cat test.txt
+
+Expected output:
+
+PG-08 VS Code successfully connected to AWS EC2 instance.
+
+This shows that files can be created and edited on EC2 directly from VS Code.

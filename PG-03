@@ -1,0 +1,478 @@
+# Cloud Computing Lab - Program 3
+## Program 3: Demonstrate Load Balancer and Elastic IP Concept in AWS
+
+# Step-by-Step Execution
+
+---
+
+## Step 1: Verify Existing VPC Resources
+
+Since VPC, Internet Gateway, Route Table, Public Subnet, Security Group, and Key Pair were already created in Program 1, we first verified them.
+
+Go to:
+
+AWS Console → VPC Dashboard
+
+Check the following resources:
+
+VPC: Lab-VPC
+CIDR: 10.1.0.0/16
+
+Internet Gateway: Lab-IGW
+
+Route Table: Public-RT
+
+Public Subnet: Public-Subnet
+CIDR: 10.1.1.0/24
+
+The route table should already contain:
+
+10.1.0.0/16  → local
+0.0.0.0/0    → Lab-IGW
+
+This route allows internet access for resources launched inside the public subnet.
+
+Step 2: Create Second Public Subnet
+
+An Application Load Balancer requires at least two public subnets in different Availability Zones.
+
+Go to:
+
+VPC Dashboard → Subnets
+
+Click:
+
+Create subnet
+
+Select the existing VPC:
+
+VPC: Lab-VPC
+
+Enter subnet details:
+
+Subnet name: Public-Subnet-2
+Availability Zone: ap-south-1b
+IPv4 subnet CIDR block: 10.1.2.0/24
+
+Click:
+
+Create subnet
+Step 3: Enable Auto-Assign Public IPv4 for Second Subnet
+
+Go to:
+
+VPC Dashboard → Subnets
+
+Select:
+
+Public-Subnet-2
+
+Click:
+
+Actions → Edit subnet settings
+
+Enable:
+
+Auto-assign public IPv4 address
+
+Click:
+
+Save
+
+This ensures that EC2 instances launched in this subnet receive a public IPv4 address automatically.
+
+Step 4: Associate Second Subnet with Existing Public Route Table
+
+Go to:
+
+VPC Dashboard → Route Tables
+
+Select the existing route table:
+
+Public-RT
+
+Go to:
+
+Subnet associations
+
+Click:
+
+Edit subnet associations
+
+Select both public subnets:
+
+Public-Subnet
+Public-Subnet-2
+
+Click:
+
+Save associations
+
+Now both subnets are public because both are associated with the route table having:
+
+0.0.0.0/0 → Lab-IGW
+Step 5: Update Security Group
+
+Go to:
+
+EC2 Dashboard → Security Groups
+
+Open the existing security group:
+
+Lab-SG
+
+Edit inbound rules and make sure the following rules are present:
+
+Type: SSH
+Protocol: TCP
+Port: 22
+Source: My IP or 0.0.0.0/0
+Type: HTTP
+Protocol: TCP
+Port: 80
+Source: 0.0.0.0/0
+
+For lab exam execution, using 0.0.0.0/0 makes testing easier.
+
+HTTP port 80 is required because the load balancer will forward browser requests to Apache running on EC2 instances.
+
+Step 6: Launch First Ubuntu EC2 Instance
+
+Go to:
+
+EC2 Dashboard → Instances
+
+Click:
+
+Launch instances
+
+Enter instance name:
+
+PG03-Server-1
+
+Select AMI:
+
+Ubuntu Server
+
+Select instance type:
+
+t2.micro
+
+or
+
+t3.micro
+
+Select key pair:
+
+cloud-lab-key
+
+In Network settings, click:
+
+Edit
+
+Select:
+
+VPC: Lab-VPC
+Subnet: Public-Subnet
+Auto-assign public IP: Enable
+Firewall: Select existing security group
+Security Group: Lab-SG
+
+Now open:
+
+Advanced details → User data
+
+Paste the following script:
+
+#!/bin/bash
+sudo apt update -y
+sudo apt install -y apache2
+HOSTNAME=$(hostname)
+PRIVATE_IP=$(hostname -I | awk '{print $1}')
+echo "<html>
+<head>
+<title>PG-03 Server 1</title>
+</head>
+<body>
+<h1>PG-03: Application Load Balancer Demo</h1>
+<h2>This response is from Server 1</h2>
+<p><strong>Hostname:</strong> $HOSTNAME</p>
+<p><strong>Private IP:</strong> $PRIVATE_IP</p>
+</body>
+</html>" | sudo tee /var/www/html/index.html
+sudo systemctl start apache2
+sudo systemctl enable apache2
+
+Click:
+
+Launch instance
+Step 7: Launch Second Ubuntu EC2 Instance
+
+Again go to:
+
+EC2 Dashboard → Instances
+
+Click:
+
+Launch instances
+
+Enter instance name:
+
+PG03-Server-2
+
+Select AMI:
+
+Ubuntu Server
+
+Select instance type:
+
+t2.micro
+
+or
+
+t3.micro
+
+Select key pair:
+
+cloud-lab-key
+
+In Network settings, click:
+
+Edit
+
+Select:
+
+VPC: Lab-VPC
+Subnet: Public-Subnet-2
+Auto-assign public IP: Enable
+Firewall: Select existing security group
+Security Group: Lab-SG
+
+Open:
+
+Advanced details → User data
+
+Paste the following script:
+
+#!/bin/bash
+sudo apt update -y
+sudo apt install -y apache2
+HOSTNAME=$(hostname)
+PRIVATE_IP=$(hostname -I | awk '{print $1}')
+echo "<html>
+<head>
+<title>PG-03 Server 2</title>
+</head>
+<body>
+<h1>PG-03: Application Load Balancer Demo</h1>
+<h2>This response is from Server 2</h2>
+<p><strong>Hostname:</strong> $HOSTNAME</p>
+<p><strong>Private IP:</strong> $PRIVATE_IP</p>
+</body>
+</html>" | sudo tee /var/www/html/index.html
+sudo systemctl start apache2
+sudo systemctl enable apache2
+
+Click:
+
+Launch instance
+
+Wait until both instances show:
+
+Instance state: Running
+Status check: 2/2 checks passed
+Step 8: Test Apache Web Server on Both Instances
+
+Copy the public IPv4 address of:
+
+PG03-Server-1
+
+Open it in browser:
+
+http://SERVER-1-PUBLIC-IP
+
+Expected output:
+
+PG-03: Application Load Balancer Demo
+This response is from Server 1
+Hostname: ...
+Private IP: ...
+
+Now copy the public IPv4 address of:
+
+PG03-Server-2
+
+Open it in browser:
+
+http://SERVER-2-PUBLIC-IP
+
+Expected output:
+
+PG-03: Application Load Balancer Demo
+This response is from Server 2
+Hostname: ...
+Private IP: ...
+
+If both pages open successfully, Apache is running correctly on both EC2 instances.
+
+Step 9: Create Target Group
+
+Go to:
+
+EC2 Dashboard → Target Groups
+
+Click:
+
+Create target group
+
+Select target type:
+
+Instances
+
+Enter the following details:
+
+Target group name: pg03-target-group
+Protocol: HTTP
+Port: 80
+VPC: Lab-VPC
+Protocol version: HTTP1
+
+Health check settings:
+
+Health check protocol: HTTP
+Health check path: /
+
+Click:
+
+Next
+
+Select both instances:
+
+PG03-Server-1
+PG03-Server-2
+
+Click:
+
+Include as pending below
+
+Then click:
+
+Create target group
+Step 10: Check Target Health
+
+Open:
+
+EC2 Dashboard → Target Groups → pg03-target-group → Targets
+
+Wait until both instances show:
+
+Healthy
+
+If targets are unhealthy, wait for 1–2 minutes and refresh.
+
+If they are still unhealthy, check:
+
+Apache is running on both instances
+Security group allows HTTP port 80
+Instances are running
+Target group health check path is /
+Instances are added to target group
+Step 11: Create Application Load Balancer
+
+Go to:
+
+EC2 Dashboard → Load Balancers
+
+Click:
+
+Create load balancer
+
+Choose:
+
+Application Load Balancer
+
+Click:
+
+Create
+
+Enter basic configuration:
+
+Load balancer name: pg03-alb
+Scheme: Internet-facing
+IP address type: IPv4
+
+In network mapping, select:
+
+VPC: Lab-VPC
+
+Select both Availability Zones and public subnets:
+
+ap-south-1a → Public-Subnet
+ap-south-1b → Public-Subnet-2
+
+In security group section, select:
+
+Lab-SG
+
+In listeners and routing, enter:
+
+Protocol: HTTP
+Port: 80
+Forward to: pg03-target-group
+
+Click:
+
+Create load balancer
+Step 12: Access Application Load Balancer DNS
+
+Go to:
+
+EC2 Dashboard → Load Balancers
+
+Select:
+
+pg03-alb
+
+Copy the DNS name of the load balancer.
+
+It will look similar to:
+
+pg03-alb-123456789.ap-south-1.elb.amazonaws.com
+
+Open in browser:
+
+http://LOAD-BALANCER-DNS-NAME
+
+Example:
+
+http://pg03-alb-123456789.ap-south-1.elb.amazonaws.com
+
+Expected output may show:
+
+This response is from Server 1
+
+or:
+
+This response is from Server 2
+
+Refresh the browser multiple times. The response should toggle between the two EC2 instances.
+
+Step 13: Test Load Balancer from Ubuntu Terminal
+
+Open Ubuntu terminal and run:
+
+curl http://LOAD-BALANCER-DNS-NAME
+
+Run it multiple times:
+
+curl http://LOAD-BALANCER-DNS-NAME
+curl http://LOAD-BALANCER-DNS-NAME
+curl http://LOAD-BALANCER-DNS-NAME
+
+Expected output should show responses from both servers:
+
+This response is from Server 1
+
+and:
+
+This response is from Server 2

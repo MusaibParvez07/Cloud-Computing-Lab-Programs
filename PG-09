@@ -1,0 +1,312 @@
+# Cloud Computing Lab - Program 9
+
+## Program 9: Deploy Java Application by Connecting to RDS Server in Cloud
+
+
+
+Step-by-Step Execution
+Step 1: Verify RDS Database
+
+Go to:
+
+AWS Console → RDS → Databases
+
+Open the database:
+
+pg05-mysql-db
+
+Check that the status is:
+
+Available
+
+Copy the RDS endpoint.
+
+Example:
+
+pg05-mysql-db.xxxxxxxxxxxx.ap-south-1.rds.amazonaws.com
+
+Also note:
+
+Port: 3306
+Username: admin
+Password: Admin12345
+Database: cloud_lab
+Step 2: Verify RDS Security Group
+
+Go to:
+
+EC2 Dashboard → Security Groups → RDS-SG
+
+The inbound rule must allow MySQL traffic:
+
+Type: MySQL/Aurora
+Protocol: TCP
+Port: 3306
+Source: EC2 Security Group or 0.0.0.0/0
+
+For lab exam, if connection fails, use:
+
+Source: 0.0.0.0/0
+
+This allows the EC2 instance to connect to the RDS MySQL database.
+
+Step 3: Connect to Ubuntu EC2 Instance
+
+Open local Ubuntu terminal.
+
+Go to the folder where the key file is present:
+
+cd ~/Downloads
+
+Set permission for the key file:
+
+chmod 400 cloud-lab-key.pem
+
+Connect to EC2:
+
+ssh -i cloud-lab-key.pem ubuntu@EC2-PUBLIC-IP
+
+Example:
+
+ssh -i cloud-lab-key.pem ubuntu@13.201.xx.xx
+
+After successful login, the terminal should show:
+
+ubuntu@ip-10-1-1-xx:~$
+
+Now all further commands are executed inside the EC2 Ubuntu terminal.
+
+Step 4: Install Java JDK
+
+Inside the EC2 terminal, first update packages:
+
+sudo apt update -y
+
+Install Java JDK:
+
+sudo apt install -y default-jdk
+
+If default-jdk does not install, use:
+
+sudo apt install -y openjdk-21-jdk
+
+Check Java installation:
+
+java -version
+javac -version
+
+Expected output should show Java and Java compiler versions.
+
+Example:
+
+openjdk version "21..."
+javac 21...
+Step 5: Install MySQL Client
+
+Install MySQL client to test RDS connection from EC2:
+
+sudo apt install -y mysql-client
+
+If this does not install, use:
+
+sudo apt install -y default-mysql-client
+
+Check MySQL client:
+
+mysql --version
+Step 6: Install MariaDB JDBC Driver
+
+Install the JDBC driver package:
+
+sudo apt install -y libmariadb-java
+
+Check whether the JDBC jar file exists:
+
+ls -l /usr/share/java/*mariadb*
+
+Create a variable to automatically store the actual JDBC jar path:
+
+JAR=$(ls /usr/share/java/*mariadb*.jar | head -n 1)
+echo $JAR
+
+This avoids path errors because the jar file name may differ on different Ubuntu versions.
+
+Step 7: Test RDS Connection from EC2
+
+Before running Java, test MySQL connection manually.
+
+Run:
+
+mysql -h RDS-ENDPOINT -P 3306 -u admin -p
+
+Example:
+
+mysql -h pg05-mysql-db.xxxxxxxxxxxx.ap-south-1.rds.amazonaws.com -P 3306 -u admin -p
+
+Enter password:
+
+Admin12345
+
+After successful connection, MySQL prompt appears:
+
+mysql>
+
+Run:
+
+SHOW DATABASES;
+
+Use the database:
+
+USE cloud_lab;
+
+Check tables:
+
+SHOW TABLES;
+
+Exit MySQL:
+
+EXIT;
+
+This confirms that EC2 can connect to the RDS database.
+
+Step 8: Create Java Program
+
+Inside the EC2 terminal, create the Java file:
+
+nano JdbcCrudDemo.java
+
+Paste the following code.
+
+Replace RDS-ENDPOINT with your actual RDS endpoint.
+
+import java.sql.*;
+
+public class JdbcCrudDemo {
+
+    static final String JDBC_URL = "jdbc:mariadb://RDS-ENDPOINT:3306/cloud_lab";
+    static final String JDBC_USER = "admin";
+    static final String JDBC_PASS = "Admin12345";
+
+    public static void main(String[] args) {
+
+        try {
+            Class.forName("org.mariadb.jdbc.Driver");
+
+            Connection conn = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASS);
+            System.out.println("Connected to RDS successfully.");
+
+            Statement createStmt = conn.createStatement();
+
+            createStmt.executeUpdate(
+                "CREATE TABLE IF NOT EXISTS employees (" +
+                "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "name VARCHAR(50), " +
+                "email VARCHAR(100), " +
+                "country VARCHAR(50), " +
+                "salary DOUBLE)"
+            );
+
+            createStmt.executeUpdate("DELETE FROM employees");
+
+            String insertSql = "INSERT INTO employees (name, email, country, salary) VALUES (?, ?, ?, ?)";
+            PreparedStatement insertStmt = conn.prepareStatement(insertSql);
+
+            insertStmt.setString(1, "Alice");
+            insertStmt.setString(2, "alice@example.com");
+            insertStmt.setString(3, "USA");
+            insertStmt.setDouble(4, 50000);
+            insertStmt.executeUpdate();
+
+            System.out.println("Inserted new employee.");
+
+            String selectSql = "SELECT * FROM employees";
+            Statement selectStmt = conn.createStatement();
+            ResultSet rs = selectStmt.executeQuery(selectSql);
+
+            System.out.println("Employee List:");
+            while (rs.next()) {
+                System.out.println(
+                    rs.getInt("id") + ", " +
+                    rs.getString("name") + ", " +
+                    rs.getString("email") + ", " +
+                    rs.getString("country") + ", " +
+                    rs.getDouble("salary")
+                );
+            }
+
+            String updateSql = "UPDATE employees SET salary = ? WHERE name = ?";
+            PreparedStatement updateStmt = conn.prepareStatement(updateSql);
+
+            updateStmt.setDouble(1, 60000);
+            updateStmt.setString(2, "Alice");
+            updateStmt.executeUpdate();
+
+            System.out.println("Updated salary for Alice.");
+
+            String deleteSql = "DELETE FROM employees WHERE name = ?";
+            PreparedStatement deleteStmt = conn.prepareStatement(deleteSql);
+
+            deleteStmt.setString(1, "Alice");
+            deleteStmt.executeUpdate();
+
+            System.out.println("Deleted employee Alice.");
+
+            rs.close();
+            selectStmt.close();
+            insertStmt.close();
+            updateStmt.close();
+            deleteStmt.close();
+            createStmt.close();
+            conn.close();
+
+            System.out.println("Program executed successfully.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+Save the file:
+
+Ctrl + O
+Enter
+Ctrl + X
+Step 9: Compile Java Program
+
+Use the JDBC jar variable created earlier:
+
+JAR=$(ls /usr/share/java/*mariadb*.jar | head -n 1)
+echo $JAR
+
+Compile the program:
+
+javac -cp "$JAR" JdbcCrudDemo.java
+
+If there is no error, compilation is successful.
+
+Check files:
+
+ls
+
+Expected files:
+
+JdbcCrudDemo.java
+JdbcCrudDemo.class
+Step 10: Run Java Program
+
+Run the program:
+
+java -cp ".:$JAR" JdbcCrudDemo
+
+Expected output:
+
+Connected to RDS successfully.
+Inserted new employee.
+Employee List:
+1, Alice, alice@example.com, USA, 50000.0
+Updated salary for Alice.
+Deleted employee Alice.
+Program executed successfully.
+
+This is the final output of Program 9.

@@ -1,0 +1,465 @@
+# Cloud Computing Lab - Program 5
+## Program 5: Create Database Using Amazon RDS and Perform CRUD Operations
+
+# Step-by-Step Execution
+
+
+## Step 1: Verify Existing VPC Resources
+
+First verify the existing VPC resources created in previous programs.
+
+Go to:
+
+AWS Console → VPC Dashboard
+
+Check the following:
+
+VPC: Lab-VPC
+CIDR: 10.1.0.0/16
+
+Public Subnet 1: Public-Subnet
+CIDR: 10.1.1.0/24
+
+Public Subnet 2: Public-Subnet-2
+CIDR: 10.1.2.0/24
+
+Internet Gateway: Lab-IGW
+
+Route Table: Public-RT
+
+The route table should have:
+
+10.1.0.0/16  → local
+0.0.0.0/0    → Lab-IGW
+Step 2: Enable DNS Resolution and DNS Hostnames in VPC
+
+While creating the RDS database, the following error may appear:
+
+Cannot create a publicly accessible DBInstance.
+The specified VPC does not support DNS resolution, DNS hostnames, or both.
+
+To fix this, enable DNS settings for the VPC.
+
+Go to:
+
+VPC Dashboard → Your VPCs
+
+Select:
+
+Lab-VPC
+
+Click:
+
+Actions → Edit VPC settings
+
+Enable:
+
+DNS resolution
+DNS hostnames
+
+Click:
+
+Save
+
+This step is important because RDS public access requires DNS resolution and DNS hostnames to be enabled in the selected VPC.
+
+Step 3: Create Security Group for RDS
+
+Go to:
+
+EC2 Dashboard → Security Groups
+
+Click:
+
+Create security group
+
+Enter the following details:
+
+Security group name: RDS-SG
+Description: Allow MySQL access for RDS
+VPC: Lab-VPC
+
+Add inbound rule:
+
+Type: MySQL/Aurora
+Protocol: TCP
+Port: 3306
+Source: My IP
+
+If connection fails in the lab network, use:
+
+Source: 0.0.0.0/0
+
+Keep outbound rule as default:
+
+All traffic allowed
+
+Click:
+
+Create security group
+Step 4: Create DB Subnet Group
+
+Go to:
+
+RDS Dashboard → Subnet groups
+
+Click:
+
+Create DB subnet group
+
+Enter the following details:
+
+Name: pg05-db-subnet-group
+Description: Subnet group for PG05 RDS
+VPC: Lab-VPC
+
+Select Availability Zones:
+
+ap-south-1a
+ap-south-1b
+
+Select subnets:
+
+Public-Subnet
+Public-Subnet-2
+
+Click:
+
+Create
+
+The DB subnet group allows RDS to use the selected subnets inside the VPC.
+
+Step 5: Create RDS MySQL Database
+
+Go to:
+
+RDS Dashboard → Databases
+
+Click:
+
+Create database
+
+Choose:
+
+Database creation method: Standard create
+Engine type: MySQL
+
+Template:
+
+Free tier
+
+If free tier is not visible, choose the smallest available instance type.
+
+Step 6: Configure RDS Database Settings
+
+Enter the following database details:
+
+DB instance identifier: pg05-mysql-db
+Master username: admin
+Master password: Admin12345
+Confirm password: Admin12345
+
+In instance configuration, choose:
+
+DB instance class: db.t3.micro / db.t4g.micro / free tier eligible option
+
+In storage settings:
+
+Allocated storage: 20 GB
+Storage autoscaling: Disable if visible
+Step 7: Configure Connectivity Settings
+
+In the connectivity section, select:
+
+VPC: Lab-VPC
+DB subnet group: pg05-db-subnet-group
+Public access: Yes
+VPC security group: Choose existing
+Security group: RDS-SG
+Availability Zone: No preference
+
+Database authentication:
+
+Password authentication
+
+Additional configuration:
+
+Initial database name: clouddb
+
+In maintenance settings:
+
+Enable auto minor version upgrade: Enabled
+
+In deletion protection:
+
+Enable deletion protection: Unchecked
+
+Click:
+
+Create database
+
+Wait until the database status becomes:
+
+Available
+
+This may take several minutes.
+
+Step 8: Copy RDS Endpoint
+
+After the database becomes available:
+
+Go to:
+
+RDS → Databases → pg05-mysql-db
+
+Copy the endpoint.
+
+It will look similar to:
+
+pg05-mysql-db.xxxxxxxxxxxx.ap-south-1.rds.amazonaws.com
+
+Also note the port:
+
+3306
+Connect to RDS from Ubuntu Terminal
+Step 9: Install MySQL Client on Ubuntu
+
+Open Ubuntu terminal and run:
+
+sudo apt update -y
+sudo apt install mysql-client -y
+
+Check MySQL client version:
+
+mysql --version
+Step 10: Connect to RDS MySQL Database
+
+Use the following command:
+
+mysql -h RDS-ENDPOINT -P 3306 -u admin -p
+
+Example:
+
+mysql -h pg05-mysql-db.xxxxxxxxxxxx.ap-south-1.rds.amazonaws.com -P 3306 -u admin -p
+
+Enter the password:
+
+Admin12345
+
+After successful connection, the MySQL prompt will appear:
+
+mysql>
+CRUD Operations
+
+CRUD stands for:
+
+C → Create
+R → Read
+U → Update
+D → Delete
+Step 11: Show Existing Databases
+
+Inside the MySQL prompt, run:
+
+SHOW DATABASES;
+
+Expected output:
+
++--------------------+
+| Database           |
++--------------------+
+| clouddb            |
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+Step 12: Create Database
+
+Run:
+
+CREATE DATABASE IF NOT EXISTS cloud_lab;
+
+Use the database:
+
+USE cloud_lab;
+
+Expected output:
+
+Database changed
+
+This is part of the Create operation.
+
+Step 13: Create Table
+
+Run:
+
+CREATE TABLE students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50),
+    course VARCHAR(50),
+    marks INT
+);
+
+Check whether the table is created:
+
+SHOW TABLES;
+
+Expected output:
+
++---------------------+
+| Tables_in_cloud_lab |
++---------------------+
+| students            |
++---------------------+
+
+Check table structure:
+
+DESC students;
+
+Expected output:
+
++--------+-------------+------+-----+---------+----------------+
+| Field  | Type        | Null | Key | Default | Extra          |
++--------+-------------+------+-----+---------+----------------+
+| id     | int         | NO   | PRI | NULL    | auto_increment |
+| name   | varchar(50) | YES  |     | NULL    |                |
+| course | varchar(50) | YES  |     | NULL    |                |
+| marks  | int         | YES  |     | NULL    |                |
++--------+-------------+------+-----+---------+----------------+
+
+This is also part of the Create operation.
+
+Step 14: Insert Records
+
+Run:
+
+INSERT INTO students (name, course, marks)
+VALUES 
+('Musaib', 'Cloud Computing', 92),
+('Ayaan', 'AWS', 85),
+('Sara', 'Database', 88);
+
+Expected output:
+
+Query OK, 3 rows affected
+
+This is the Create operation because records are inserted into the table.
+
+Step 15: Read Records
+
+Run:
+
+SELECT * FROM students;
+
+Expected output:
+
++----+--------+-----------------+-------+
+| id | name   | course          | marks |
++----+--------+-----------------+-------+
+|  1 | Musaib | Cloud Computing |    92 |
+|  2 | Ayaan  | AWS             |    85 |
+|  3 | Sara   | Database        |    88 |
++----+--------+-----------------+-------+
+
+This is the Read operation.
+
+Step 16: Update Record
+
+Update Musaib's marks:
+
+UPDATE students
+SET marks = 95
+WHERE name = 'Musaib';
+
+Check the updated table:
+
+SELECT * FROM students;
+
+Expected output:
+
++----+--------+-----------------+-------+
+| id | name   | course          | marks |
++----+--------+-----------------+-------+
+|  1 | Musaib | Cloud Computing |    95 |
+|  2 | Ayaan  | AWS             |    85 |
+|  3 | Sara   | Database        |    88 |
++----+--------+-----------------+-------+
+
+This is the Update operation.
+
+Step 17: Delete Record
+
+Delete one record:
+
+DELETE FROM students
+WHERE name = 'Ayaan';
+
+Check the final table:
+
+SELECT * FROM students;
+
+Expected output:
+
++----+--------+-----------------+-------+
+| id | name   | course          | marks |
++----+--------+-----------------+-------+
+|  1 | Musaib | Cloud Computing |    95 |
+|  3 | Sara   | Database        |    88 |
++----+--------+-----------------+-------+
+
+This is the Delete operation.
+
+Step 18: Exit MySQL
+
+Run:
+
+EXIT;
+
+Expected output:
+
+Bye
+All SQL Commands Together for Quick Execution
+
+After connecting to MySQL, these commands can be copied and executed together:
+
+SHOW DATABASES;
+
+CREATE DATABASE IF NOT EXISTS cloud_lab;
+
+USE cloud_lab;
+
+DROP TABLE IF EXISTS students;
+
+CREATE TABLE students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50),
+    course VARCHAR(50),
+    marks INT
+);
+
+SHOW TABLES;
+
+DESC students;
+
+INSERT INTO students (name, course, marks)
+VALUES 
+('Musaib', 'Cloud Computing', 92),
+('Ayaan', 'AWS', 85),
+('Sara', 'Database', 88);
+
+SELECT * FROM students;
+
+UPDATE students
+SET marks = 95
+WHERE name = 'Musaib';
+
+SELECT * FROM students;
+
+DELETE FROM students
+WHERE name = 'Ayaan';
+
+SELECT * FROM students;
+Expected Final Output
+
+The final output should show successful CRUD operations on the RDS MySQL database.

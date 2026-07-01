@@ -1,0 +1,441 @@
+# Cloud Computing Lab - Program 10
+## Program 10: Demonstrate Auto Scaling Group Concept in Cloud
+
+
+# Step-by-Step Execution
+
+## Step 1: Verify Existing VPC Resources
+
+Since the VPC resources were already created in previous programs, first verify them.
+
+Go to:
+AWS Console → VPC Dashboard
+
+Check the following resources:
+
+VPC: Lab-VPC
+CIDR: 10.1.0.0/16
+
+Public Subnet 1: Public-Subnet
+CIDR: 10.1.1.0/24
+
+Public Subnet 2: Public-Subnet-2
+CIDR: 10.1.2.0/24
+
+Internet Gateway: Lab-IGW
+
+Route Table: Public-RT
+
+The route table should contain:
+
+10.1.0.0/16  → local
+0.0.0.0/0    → Lab-IGW
+
+Both public subnets should be associated with Public-RT.
+
+Step 2: Check Security Group
+
+Go to:
+
+EC2 Dashboard → Security Groups
+
+Open the existing security group:
+
+Lab-SG
+
+Make sure the inbound rules include:
+
+Type: SSH
+Protocol: TCP
+Port: 22
+Source: My IP or 0.0.0.0/0
+Type: HTTP
+Protocol: TCP
+Port: 80
+Source: 0.0.0.0/0
+
+HTTP port 80 is required because the Load Balancer forwards browser traffic to EC2 instances.
+
+Step 3: Create Target Group
+
+Go to:
+
+EC2 Dashboard → Target Groups
+
+Click:
+
+Create target group
+
+Select target type:
+
+Instances
+
+Enter the following details:
+
+Target group name: pg10-target-group
+Protocol: HTTP
+Port: 80
+VPC: Lab-VPC
+Protocol version: HTTP1
+
+Health check settings:
+
+Health check protocol: HTTP
+Health check path: /
+
+Click:
+
+Next
+
+Do not manually select any instance here because the Auto Scaling Group will automatically register instances with the target group.
+
+Click:
+
+Create target group
+Step 4: Create Application Load Balancer
+
+Go to:
+
+EC2 Dashboard → Load Balancers
+
+Click:
+
+Create load balancer
+
+Select:
+
+Application Load Balancer
+
+Click:
+
+Create
+
+Enter basic configuration:
+
+Load balancer name: pg10-alb
+Scheme: Internet-facing
+IP address type: IPv4
+
+In network mapping, select:
+
+VPC: Lab-VPC
+
+Select both Availability Zones and public subnets:
+
+ap-south-1a → Public-Subnet
+ap-south-1b → Public-Subnet-2
+
+In security group section, select:
+
+Lab-SG
+
+In listeners and routing, configure:
+
+Protocol: HTTP
+Port: 80
+Forward to: pg10-target-group
+
+Click:
+
+Create load balancer
+Step 5: Create Launch Template
+
+Go to:
+
+EC2 Dashboard → Launch Templates
+
+Click:
+
+Create launch template
+
+Enter:
+
+Launch template name: pg10-launch-template
+Template version description: Auto scaling template for PG10
+
+Choose AMI:
+
+Ubuntu Server
+
+Choose instance type:
+
+t2.micro
+
+or:
+
+t3.micro
+
+Choose key pair:
+
+cloud-lab-key
+
+In network settings:
+
+Do not select a subnet here
+Security group: Lab-SG
+
+Important: Do not select a subnet in the Launch Template. The Auto Scaling Group will select the subnets later.
+
+Step 6: Add User Data in Launch Template
+
+In:
+
+Advanced details → User data
+
+Paste the following script:
+
+#!/bin/bash
+apt update -y
+apt install -y apache2
+systemctl start apache2
+systemctl enable apache2
+
+HOSTNAME=$(hostname)
+PRIVATE_IP=$(hostname -I | awk '{print $1}')
+
+cat > /var/www/html/index.html <<EOF
+<html>
+<head>
+<title>PG-10 Auto Scaling Demo</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    padding: 40px;
+}
+.card {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    width: 70%;
+    margin: auto;
+    box-shadow: 0 0 10px #aaa;
+}
+h1 {
+    color: #232f3e;
+}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>PG-10: Auto Scaling Group Demo</h1>
+<h2>This EC2 instance was launched automatically by Auto Scaling Group</h2>
+<p><strong>Hostname:</strong> $HOSTNAME</p>
+<p><strong>Private IP:</strong> $PRIVATE_IP</p>
+</div>
+</body>
+</html>
+EOF
+
+systemctl restart apache2
+
+Click:
+
+Create launch template
+
+The launch template is now ready.
+
+Step 7: Create Auto Scaling Group
+
+Go to:
+
+EC2 Dashboard → Auto Scaling Groups
+
+Click:
+
+Create Auto Scaling group
+
+Enter Auto Scaling group name:
+
+pg10-asg
+
+Select launch template:
+
+pg10-launch-template
+
+Click:
+
+Next
+Step 8: Select VPC and Subnets
+
+Select the existing VPC:
+
+VPC: Lab-VPC
+
+Select both public subnets:
+
+Public-Subnet
+Public-Subnet-2
+
+Click:
+
+Next
+
+The Auto Scaling Group will launch instances inside these selected subnets.
+
+Step 9: Attach Load Balancer
+
+In the load balancing section, select:
+
+Attach to an existing load balancer
+
+Then choose:
+
+Choose from your load balancer target groups
+
+Select:
+
+pg10-target-group
+
+Enable health checks:
+
+Turn on Elastic Load Balancing health checks
+
+Click:
+
+Next
+Step 10: Configure Group Size
+
+Set the group size:
+
+Desired capacity: 2
+Minimum capacity: 1
+Maximum capacity: 3
+
+Meaning:
+
+Desired capacity 2 → Auto Scaling keeps 2 instances running normally.
+Minimum capacity 1 → It should not go below 1 instance.
+Maximum capacity 3 → It can scale up to 3 instances.
+
+Click:
+
+Next
+
+For this lab, manual desired capacity is enough to demonstrate Auto Scaling Group.
+
+Step 11: Skip Notifications and Add Tag
+
+Notifications:
+
+Skip
+
+Tags are optional.
+
+To identify instances easily, add this tag:
+
+Key: Name
+Value: PG10-ASG-Instance
+
+Click:
+
+Next
+
+Review all settings and click:
+
+Create Auto Scaling group
+Step 12: Verify Auto Scaling Created Instances
+
+Go to:
+
+EC2 Dashboard → Instances
+
+After a few minutes, two EC2 instances should be created automatically by the Auto Scaling Group.
+
+They may appear with the name:
+
+PG10-ASG-Instance
+
+Check:
+
+Instance state: Running
+Status check: 2/2 checks passed
+
+This proves that the Auto Scaling Group created instances based on desired capacity.
+
+Step 13: Verify Target Group Health
+
+Go to:
+
+EC2 Dashboard → Target Groups → pg10-target-group → Targets
+
+Wait until both targets show:
+
+Healthy
+
+If they show unhealthy initially, wait 2–3 minutes and refresh.
+
+Step 14: Open Load Balancer DNS
+
+Go to:
+
+EC2 Dashboard → Load Balancers → pg10-alb
+
+Copy the DNS name of the Load Balancer.
+
+It will look like:
+
+pg10-alb-123456789.ap-south-1.elb.amazonaws.com
+
+Open in browser:
+
+http://LOAD-BALANCER-DNS-NAME
+
+Expected output:
+
+PG-10: Auto Scaling Group Demo
+This EC2 instance was launched automatically by Auto Scaling Group
+Hostname: ip-10-1-x-xx
+Private IP: 10.1.x.xx
+
+Refresh the browser multiple times. You may see different hostnames or private IP addresses because the Load Balancer sends requests to different Auto Scaling instances.
+
+Demonstrating Auto Scaling Working
+Step 15: Terminate One Auto Scaling Instance
+
+Go to:
+
+EC2 Dashboard → Instances
+
+Select one instance created by Auto Scaling Group.
+
+Click:
+
+Instance state → Terminate instance
+
+Confirm termination.
+
+Step 16: Verify Replacement Instance Is Created
+
+Go to:
+
+EC2 Dashboard → Auto Scaling Groups → pg10-asg → Activity
+
+You should see activity messages similar to:
+
+Terminating EC2 instance
+Launching a new EC2 instance
+
+Now go to:
+
+EC2 Dashboard → Instances
+
+After a few minutes, a new EC2 instance will be created automatically.
+
+This proves that Auto Scaling Group maintains the desired capacity.
+
+Step 17: Check Target Group Again
+
+Go to:
+
+EC2 Dashboard → Target Groups → pg10-target-group → Targets
+
+Wait until the replacement instance becomes:
+
+Healthy
+
+Open the Load Balancer DNS again:
+
+http://LOAD-BALANCER-DNS-NAME
+
+The webpage should still open successfully.

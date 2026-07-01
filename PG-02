@@ -1,0 +1,446 @@
+# Cloud Computing Lab - Program 2
+## Program 2: Create Storage Space Using S3 Services in AWS
+
+
+# Step-by-Step Execution
+
+## Step 1: Create IAM User
+
+1. Login to AWS Management Console.
+2. Search for:
+IAM
+Open IAM Dashboard.
+In the left menu, click:
+Users
+Click:
+Create user
+Enter user name:
+s3-lab-user
+Do not enable console access unless required.
+Click:
+Next
+Step 2: Attach Permission to IAM User
+Select:
+Attach policies directly
+Search for:
+AmazonS3FullAccess
+Select:
+AmazonS3FullAccess
+Click:
+Next
+Click:
+Create user
+
+This IAM user is used to access S3 from Ubuntu terminal using AWS CLI.
+
+Step 3: Create Access Key for AWS CLI
+Open the created IAM user:
+s3-lab-user
+Go to:
+Security credentials
+Scroll down to:
+Access keys
+Click:
+Create access key
+Select:
+Command Line Interface CLI
+Tick the confirmation checkbox.
+Click:
+Next
+Add description:
+PG-02 AWS CLI key
+Click:
+Create access key
+Copy or download:
+Access Key ID
+Secret Access Key
+
+Important: Do not upload access keys to GitHub.
+
+Step 4: Install AWS CLI on Ubuntu
+
+Open Ubuntu terminal and first check whether AWS CLI is already installed:
+
+aws --version
+
+If AWS CLI is already installed, skip installation.
+
+If not installed, run:
+
+sudo apt update -y
+sudo apt install unzip curl -y
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+Expected output:
+
+aws-cli/2.x.x Python/3.x.x Linux/x86_64
+Step 5: Configure AWS CLI
+
+Run:
+
+aws configure
+
+Enter the following details:
+
+AWS Access Key ID: paste your access key
+AWS Secret Access Key: paste your secret key
+Default region name: ap-south-1
+Default output format: text
+
+Test AWS CLI:
+
+aws s3 ls
+
+If no error appears, AWS CLI is configured successfully.
+
+Step 6: Create Demo Files in Ubuntu
+
+Run the following commands:
+
+mkdir -p ~/pg02-s3-demo/docs
+cd ~/pg02-s3-demo
+
+cat > index.html <<'EOF'
+<html>
+<head>
+    <title>PG-02 S3 Storage</title>
+</head>
+<body>
+    <h1>PG-02: S3 Storage Space Created Successfully</h1>
+    <p>This file is uploaded to Amazon S3 and accessed using CloudFront.</p>
+</body>
+</html>
+EOF
+
+echo "Cloud Computing Lab PG-02 - S3 Storage Demo" > info.txt
+echo "This is a folder file uploaded to S3." > docs/readme.txt
+
+Check files:
+
+ls
+ls docs
+
+Expected files:
+
+index.html
+info.txt
+docs/readme.txt
+Step 7: Create S3 Bucket Using AWS CLI
+
+S3 bucket name must be globally unique.
+
+Create a unique bucket name:
+
+BUCKET=musaib-pg02-s3-$(date +%Y%m%d%H%M%S)
+echo $BUCKET
+
+Create the bucket in Mumbai region:
+
+aws s3api create-bucket \
+  --bucket "$BUCKET" \
+  --region ap-south-1 \
+  --create-bucket-configuration LocationConstraint=ap-south-1
+
+Expected output:
+
+Location    http://bucket-name.s3.amazonaws.com/
+Step 8: Upload Files and Folder to S3
+
+Upload index.html:
+
+aws s3 cp index.html s3://$BUCKET/
+
+Upload info.txt:
+
+aws s3 cp info.txt s3://$BUCKET/
+
+Upload docs folder:
+
+aws s3 cp docs/ s3://$BUCKET/docs/ --recursive
+
+Expected output:
+
+upload: ./index.html to s3://bucket-name/index.html
+upload: ./info.txt to s3://bucket-name/info.txt
+upload: docs/readme.txt to s3://bucket-name/docs/readme.txt
+Step 9: Display S3 Buckets
+
+Run:
+
+aws s3api list-buckets --query "Buckets[].Name" --output table
+
+The created bucket name should appear in the list.
+
+Step 10: Display Contents of S3 Bucket
+
+Run:
+
+aws s3 ls s3://$BUCKET/
+
+Expected output:
+
+PRE docs/
+index.html
+info.txt
+
+Display all files including folder contents:
+
+aws s3 ls s3://$BUCKET/ --recursive
+
+Expected output:
+
+docs/readme.txt
+index.html
+info.txt
+
+At this point, the basic S3 storage part is complete.
+
+CloudFront Configuration
+Step 11: Open CloudFront Console
+Go to AWS Console.
+Search for:
+CloudFront
+Open CloudFront.
+Click:
+Create distribution
+
+If AWS asks for distribution type, select:
+
+Single website or app
+Step 12: Select S3 Bucket as Origin
+
+In the Origin section, select the S3 bucket as the origin.
+
+The origin domain should look like:
+
+bucket-name.s3.ap-south-1.amazonaws.com
+
+Do not select an endpoint containing:
+
+s3-website
+
+Important: For this program, the origin should be the normal S3 bucket endpoint.
+
+Step 13: Keep Origin Path Blank
+
+In Origin path, keep it blank.
+
+Do not write:
+
+/docs
+
+Because index.html is uploaded in the root of the bucket.
+
+Correct:
+
+Origin path: blank
+
+Wrong:
+
+Origin path: /docs
+
+If /docs is added, CloudFront searches for:
+
+/docs/index.html
+
+But our file is stored as:
+
+/index.html
+
+So the CloudFront URL may show AccessDenied.
+
+Step 14: Create or Select Origin Access Control
+
+In Origin access, select:
+
+Origin access control settings recommended
+
+If OAC is not already created, click:
+
+Create new OAC
+
+Use the following values:
+
+Name: pg02-s3-oac
+Origin type: S3
+Signing behavior: Sign requests
+Signing protocol: SigV4
+
+Click:
+
+Create
+
+Then select:
+
+pg02-s3-oac
+
+OAC allows CloudFront to access the private S3 bucket securely.
+
+Step 15: Configure Default Cache Behavior
+
+Keep most settings as default.
+
+Use these values if visible:
+
+Viewer protocol policy: Redirect HTTP to HTTPS
+Allowed HTTP methods: GET, HEAD
+Cache policy: CachingOptimized
+Step 16: Disable WAF for Lab
+
+In the Web Application Firewall or Security protections section, select:
+
+Do not enable security protections
+
+or:
+
+Do not enable WAF
+
+This is fine for lab execution.
+
+Step 17: Set Default Root Object
+
+In the Settings section, find:
+
+Default root object
+
+Enter:
+
+index.html
+
+This allows the CloudFront domain to open index.html directly.
+
+Step 18: Create CloudFront Distribution
+
+Click:
+
+Create distribution
+
+After distribution is created, open the distribution.
+
+Step 19: Attach OAC to Existing Distribution if Needed
+
+If OAC was not selected during distribution creation, it can be attached later.
+
+Go to:
+
+CloudFront → Distributions → Select your distribution → Origins
+
+Select the S3 origin and click:
+
+Edit
+
+Check:
+
+Origin access: Origin access control settings recommended
+Origin access control: pg02-s3-oac
+
+If not selected, select pg02-s3-oac.
+
+Also check:
+
+Origin path: blank
+
+Then click:
+
+Save changes
+Step 20: Copy CloudFront Bucket Policy
+
+While editing or viewing the origin, CloudFront may show:
+
+Copy policy
+
+Click:
+
+Copy policy
+
+This policy gives CloudFront permission to read objects from the S3 bucket.
+
+Step 21: Add Bucket Policy in S3
+Open S3 in a new tab.
+Open your bucket.
+Go to:
+Permissions
+Scroll to:
+Bucket policy
+Click:
+Edit
+Paste the CloudFront policy.
+Click:
+Save changes
+
+If policy has to be added manually, use this format:
+
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowCloudFrontServicePrincipalReadOnly",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+      },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::YOUR-BUCKET-NAME/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "arn:aws:cloudfront::YOUR-ACCOUNT-ID:distribution/YOUR-DISTRIBUTION-ID"
+        }
+      }
+    }
+  ]
+}
+
+Replace:
+
+YOUR-BUCKET-NAME
+YOUR-ACCOUNT-ID
+YOUR-DISTRIBUTION-ID
+
+with actual values.
+
+Correct resource format:
+
+arn:aws:s3:::bucket-name/*
+
+Correct CloudFront ARN format:
+
+arn:aws:cloudfront::account-id:distribution/distribution-id
+Step 22: Wait for CloudFront Update
+
+Go to:
+
+CloudFront → Distributions
+
+Wait until the distribution is active.
+
+In the new AWS console, the row may show:
+
+Enabled
+
+This is fine.
+
+If it shows deploying or updating, wait a few minutes.
+
+Step 23: Open CloudFront URL in Browser
+
+Copy the CloudFront distribution domain name.
+
+It looks like:
+
+dxxxxxxxxxxxxx.cloudfront.net
+
+Open:
+
+https://dxxxxxxxxxxxxx.cloudfront.net/index.html
+
+Then try:
+
+https://dxxxxxxxxxxxxx.cloudfront.net/
+
+Expected browser output:
+
+PG-02: S3 Storage Space Created Successfully
+This file is uploaded to Amazon S3 and accessed using CloudFront.

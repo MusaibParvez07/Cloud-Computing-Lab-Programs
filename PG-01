@@ -1,0 +1,207 @@
+CLOUD COMPUTING LAB - PROGRAM 1
+PROGRAM 1: Launch an Ubuntu Server by Creating VPC and Route Table in AWS
+
+# Step-by-Step Execution
+
+---
+
+## Step 1: Login to AWS Console
+
+1. Open AWS Management Console.
+2. Select region:
+
+```text
+Asia Pacific Mumbai / ap-south-1
+In the AWS search bar, search:
+VPC
+Open VPC Dashboard.
+Step 2: Create Custom VPC
+Go to:
+VPC Dashboard → Your VPCs
+Click:
+Create VPC
+Select:
+VPC only
+Enter the following details:
+Name tag: Lab-VPC
+IPv4 CIDR block: 10.1.0.0/16
+IPv6 CIDR block: No IPv6 CIDR block
+Tenancy: Default
+Click:
+Create VPC
+Step 3: Create Public Subnet
+Go to:
+VPC Dashboard → Subnets
+Click:
+Create subnet
+Select the created VPC:
+VPC: Lab-VPC
+Enter subnet details:
+Subnet name: Public-Subnet
+Availability Zone: ap-south-1a
+IPv4 subnet CIDR block: 10.1.1.0/24
+Click:
+Create subnet
+Step 4: Enable Auto-Assign Public IPv4
+
+This step is very important because the EC2 instance needs a public IP address for SSH connection.
+
+Go to:
+VPC Dashboard → Subnets
+Select:
+Public-Subnet
+Click:
+Actions → Edit subnet settings
+Enable:
+Auto-assign public IPv4 address
+Click:
+Save
+Step 5: Create Internet Gateway
+Go to:
+VPC Dashboard → Internet Gateways
+Click:
+Create internet gateway
+Enter name:
+Lab-IGW
+Click:
+Create internet gateway
+Select the created internet gateway:
+Lab-IGW
+Click:
+Actions → Attach to VPC
+Select:
+Lab-VPC
+Click:
+Attach internet gateway
+Step 6: Create Route Table
+Go to:
+VPC Dashboard → Route Tables
+Click:
+Create route table
+Enter the following details:
+Name: Public-RT
+VPC: Lab-VPC
+Click:
+Create route table
+Step 7: Add Internet Route to Route Table
+Select:
+Public-RT
+Open the Routes tab.
+Click:
+Edit routes
+Click:
+Add route
+Enter the following route:
+Destination: 0.0.0.0/0
+Target: Internet Gateway
+Internet Gateway: Lab-IGW
+Click:
+Save changes
+
+The final route table should contain:
+
+10.1.0.0/16  → local
+0.0.0.0/0    → Lab-IGW
+Step 8: Associate Route Table with Public Subnet
+Select:
+Public-RT
+Go to:
+Subnet associations
+Click:
+Edit subnet associations
+Select:
+Public-Subnet
+Click:
+Save associations
+
+Now the subnet becomes public because it is connected to the internet through the Internet Gateway.
+
+Step 9: Create Security Group
+Open EC2 Dashboard.
+Go to:
+Security Groups
+Click:
+Create security group
+Enter the following details:
+Security group name: Lab-SG
+Description: Allow SSH access
+VPC: Lab-VPC
+Add inbound rule:
+Type: SSH
+Protocol: TCP
+Port: 22
+Source: My IP
+
+If SSH does not work in the college lab network, use:
+
+Source: Anywhere IPv4
+0.0.0.0/0
+Keep outbound rule as default:
+All traffic allowed
+Click:
+Create security group
+Step 10: Create Key Pair
+Go to:
+EC2 Dashboard → Key Pairs
+Click:
+Create key pair
+Enter the following details:
+Name: cloud-lab-key
+Key pair type: RSA
+Private key file format: .pem
+Click:
+Create key pair
+The key file will be downloaded:
+cloud-lab-key.pem
+
+Keep this file safely because it is required for SSH login.
+
+Step 11: Launch Ubuntu EC2 Instance
+Go to:
+EC2 Dashboard → Instances
+Click:
+Launch instances
+Enter instance name:
+Ubuntu-Server
+Select AMI:
+Ubuntu Server
+Select instance type:
+t2.micro
+
+or
+
+t3.micro
+Select key pair:
+cloud-lab-key
+In Network settings, click:
+Edit
+Select the following:
+VPC: Lab-VPC
+Subnet: Public-Subnet
+Auto-assign public IP: Enable
+Firewall: Select existing security group
+Security Group: Lab-SG
+Keep storage as default:
+8 GB
+Click:
+Launch instance
+Wait until:
+Instance state: Running
+Status check: 2/2 checks passed
+Step 12: Connect to EC2 Instance from Ubuntu Terminal
+Open Ubuntu terminal on your local system.
+Go to the folder where the key pair is downloaded:
+cd ~/Downloads
+Change the permission of the key file:
+chmod 400 cloud-lab-key.pem
+Copy the Public IPv4 address of the EC2 instance from AWS Console.
+Connect to the EC2 instance using SSH:
+ssh -i cloud-lab-key.pem ubuntu@PUBLIC-IP
+
+Example:
+
+ssh -i cloud-lab-key.pem ubuntu@13.201.xx.xx
+If it asks for confirmation, type:
+yes
+After successful connection, the terminal will show:
+-a
